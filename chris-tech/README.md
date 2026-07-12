@@ -1,8 +1,8 @@
-# DigitPrinters - Advanced Trading Platform
+# Chris Tech - Advanced Trading Platform
 
-A modern, professional third-party trading platform built with React, Vite, TailwindCSS, and Firebase. Connects to Deriv via WebSocket API for real-time trading data.
+A modern, professional third-party trading platform built with React, Vite, and TailwindCSS. Connects to Deriv via WebSocket API for real-time trading data.
 
-**Important:** This is NOT a broker. All deposits and withdrawals remain on Deriv. DigitPrinters is a trading interface powered by Deriv technology.
+**Important:** This is NOT a broker. All deposits and withdrawals remain on Deriv. Chris Tech is a trading interface powered by Deriv technology.
 
 ## 🚀 Features
 
@@ -46,21 +46,20 @@ A modern, professional third-party trading platform built with React, Vite, Tail
 - **Charts**: TradingView Lightweight Charts
 - **State Management**: React Context
 - **Routing**: React Router v7
-- **Backend/Database**: Firebase (Firestore, Auth, Storage)
+- **Backend**: Cloudflare Pages Functions (OAuth token exchange)
 - **WebSocket**: Deriv API v3 WebSocket
 
 ## 📋 Prerequisites
 
 - Node.js 16+ and npm 8+
 - Deriv App ID ([Register here](https://deriv.com))
-- Firebase project ([Create here](https://console.firebase.google.com))
 
 ## ⚙️ Installation
 
 ### 1. Clone the repository
 ```bash
 git clone <repository-url>
-cd digitprinters.site/digitprinters
+cd my-deriv-site/chris-tech
 ```
 
 ### 2. Install dependencies
@@ -77,19 +76,11 @@ Update `.env` with your credentials:
 ```
 # Deriv Configuration - Get from https://deriv.com/app-registration
 VITE_DERIV_APP_ID=your_app_id
-VITE_DERIV_OAUTH_REDIRECT_URI=https://digitprinters.site/auth/callback
+VITE_DERIV_OAUTH_REDIRECT_URI=https://yourdomain.com/auth/callback
 
-# Use a secure server-side secret for OAuth token exchange on Vercel
+# Server-side secret for OAuth token exchange (Cloudflare Pages Function)
 DERIV_OAUTH_CLIENT_SECRET=your_deriv_oauth_client_secret
-DERIV_OAUTH_REDIRECT_URI=https://digitprinters.site/auth/callback
-
-# Firebase Configuration - Get from Firebase Console
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-bucket.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+DERIV_OAUTH_REDIRECT_URI=https://yourdomain.com/auth/callback
 ```
 
 ### 4. Start the development server
@@ -135,8 +126,6 @@ src/
 │   └── TradingContext.jsx # Trading state management
 ├── services/
 │   └── deriv.js        # Deriv WebSocket service
-├── firebase/
-│   └── config.js       # Firebase initialization
 ├── hooks/              # Custom React hooks
 ├── layouts/
 │   └── MainLayout.jsx  # Main layout wrapper
@@ -146,13 +135,16 @@ src/
 ├── App.jsx             # Main app component with routing
 ├── main.jsx            # React entry point
 └── index.css           # Global styles
+
+functions/
+└── api/
+    └── oauth-token.js  # Cloudflare Pages Function: Deriv OAuth token exchange
 ```
 
 ## 🔐 Security Notes
 
 - Never commit `.env` file to version control
-- Keep your Deriv App ID confidential
-- Protect your Firebase credentials
+- Keep your Deriv App ID and OAuth client secret confidential
 - All deposits and withdrawals go through Deriv's secure system
 - User trade data is encrypted in transit and at rest
 
@@ -169,13 +161,11 @@ src/
 - [React Documentation](https://react.dev)
 - [Vite Documentation](https://vitejs.dev)
 - [TailwindCSS Documentation](https://tailwindcss.com)
-- [Firebase Documentation](https://firebase.google.com/docs)
 
 ## ⚠️ Disclaimer
 
-DigitPrinters is NOT a regulated financial broker. This is a trading interface for Deriv. Trading involves substantial risk of loss. Not suitable for all investors. Please trade responsibly.
+Chris Tech is NOT a regulated financial broker. This is a trading interface for Deriv. Trading involves substantial risk of loss. Not suitable for all investors. Please trade responsibly.
 
 ---
 
 **Built with ❤️ using React + Vite + TailwindCSS**
-

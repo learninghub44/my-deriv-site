@@ -1,15 +1,15 @@
 {
-  "name": "digitprinters.site",
+  "name": "chris-tech",
   "private": true,
   "version": "1.0.0",
   "workspaces": [
-    "digitprinters"
+    "chris-tech"
   ],
   "scripts": {
-    "dev": "cd digitprinters && npm run dev",
-    "build": "cd digitprinters && npm run build",
-    "vercel-build": "cd digitprinters && npm run build",
-    "preview": "cd digitprinters && npm run preview",
-    "lint": "cd digitprinters && npm run lint"
+    "dev": "cd chris-tech && npm run dev",
+    "build": "cd chris-tech && npm run build",
+    "preview": "cd chris-tech && npm run preview",
+    "lint": "cd chris-tech && npm run lint"
   }
 }
+

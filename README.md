@@ -1,2 +1,3 @@
-# digitprinters.site
-deriv app
+# Chris Tech
+
+Deriv trading app.
