@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTrading } from '../context/TradingContext';
 import { useMarketData } from '../hooks/useMarketData';
@@ -58,6 +59,12 @@ export default function Trading() {
     () => activeSymbols.find((item) => item.symbol === selectedSymbol) || null,
     [activeSymbols, selectedSymbol]
   );
+
+  useEffect(() => {
+    if (!isAuthenticated && !authLoading) {
+      navigate('/');
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleProposal = async () => {
     if (!selectedSymbol) return;
