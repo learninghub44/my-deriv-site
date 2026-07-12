@@ -47,18 +47,16 @@ export const API_ENDPOINTS = {
   WEBSITE_STATUS: '/website_status',
 };
 
-// Production canonical URL
-const CANONICAL_APP_URL = 'https://www.digitprinters.site';
-
 /**
  * Deriv OAuth Configuration
  * Uses official OAuth 2.0 endpoint with proper scopes and redirect handling
+ * All app-specific values must be provided via environment variables.
  */
 export const DERIV_OAUTH_CONFIG = {
   authorize_url: 'https://oauth.deriv.com/oauth2/authorize',
   token_url: 'https://oauth.deriv.com/oauth2/token',
-  client_id: '332LK4VWd9A4pEEfTMn53',
-  redirect_uri: `${CANONICAL_APP_URL}/auth/callback`,
+  client_id: import.meta.env.VITE_DERIV_APP_ID,
+  redirect_uri: import.meta.env.VITE_DERIV_OAUTH_REDIRECT_URI,
   scope: 'read write',
   response_type: 'code',
 };

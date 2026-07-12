@@ -59,15 +59,14 @@ export default async function handler(request, response) {
     const clientId =
       process.env.DERIV_OAUTH_CLIENT_ID ||
       process.env.VITE_DERIV_OAUTH_CLIENT_ID ||
-      process.env.VITE_DERIV_APP_ID ||
-      '332LK4VWd9A4pEEfTMn53';
+      process.env.VITE_DERIV_APP_ID;
     const clientSecret = process.env.DERIV_OAUTH_CLIENT_SECRET;
     const redirectUri =
       redirect_uri ||
       process.env.DERIV_OAUTH_REDIRECT_URI ||
       (process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}/auth/callback`
-        : 'https://www.digitprinters.site/auth/callback');
+        : undefined);
 
     log('OAuth configuration loaded', {
       requestId,
@@ -80,11 +79,12 @@ export default async function handler(request, response) {
     });
 
     // Validation checks
-    if (!clientId || !clientSecret) {
+    if (!clientId || !clientSecret || !redirectUri) {
       logError('OAuth server not properly configured', null, {
         requestId,
         hasClientId: !!clientId,
         hasClientSecret: !!clientSecret,
+        hasRedirectUri: !!redirectUri,
       });
       response.status(500).json({ 
         error: 'OAuth server not configured',
