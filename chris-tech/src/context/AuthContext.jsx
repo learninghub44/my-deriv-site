@@ -14,7 +14,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { initDeriv } from '../services/deriv';
+import { initDeriv, fetchOptionsAccounts, requestOtpWebsocketUrl } from '../services/deriv';
 import { useToast } from './ToastContext';
 import { DERIV_OAUTH_CONFIG, OAUTH_LOGGING } from '../utils/constants';
 
@@ -167,19 +167,18 @@ export const AuthProvider = ({ children }) => {
     return instance;
   }, [deriv]);
 
-  const normalizeAccount = useCallback((account, balanceResponse) => {
-    const balancePayload = balanceResponse?.balance || {};
-    const loginid = account.loginid || account.account_number || balancePayload.loginid;
-    const currency = balancePayload.currency || account.currency || 'USD';
-    const balance = Number(balancePayload.balance ?? account.balance ?? 0);
+  const normalizeAccount = useCallback((account) => {
+    const loginid = account.account_id || account.loginid || account.account_number;
+    const isVirtual = account.account_type === 'demo' || account.is_virtual;
 
     return {
       ...account,
       loginid,
       account_number: account.account_number || loginid,
-      balance,
-      currency,
-      account_type: account.account_type || (account.is_virtual ? 'virtual' : 'real'),
+      balance: Number(account.balance ?? 0),
+      currency: account.currency || 'USD',
+      is_virtual: isVirtual,
+      account_type: account.account_type || (isVirtual ? 'virtual' : 'real'),
     };
   }, []);
 
@@ -195,81 +194,62 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setError(null);
 
+    const appId = DERIV_OAUTH_CONFIG.client_id;
+
     logOAuth('Starting authenticated trading session initialization', {
       reason,
-      websocketUrl: 'wss://ws.derivws.com/websockets/v3?app_id=134275',
+      appId,
       timestamp: new Date().toISOString(),
     });
 
-    derivInstance.setToken(token);
+    // 1. List Options trading accounts via REST - this already includes
+    // balance/currency, so no separate per-account websocket call is needed.
+    setInitializationStep('Loading accounts...');
+    const accountList = await fetchOptionsAccounts(token, appId);
 
-    setInitializationStep('Connecting to markets...');
-    await derivInstance.connect();
-
-    logOAuth('Websocket connected for trading session', {
-      connected: derivInstance.isConnected(),
-      reason,
-      timestamp: new Date().toISOString(),
-    });
-
-    setInitializationStep('Authenticating...');
-    const authorizationResponse = await derivInstance.authorize(token);
-    const authorizePayload = authorizationResponse.authorize || {};
-
-    logOAuth('Authorization response received', {
-      loginid: authorizePayload.loginid,
-      currency: authorizePayload.currency,
-      isVirtual: authorizePayload.is_virtual,
-      scopes: authorizePayload.scopes,
-      timestamp: new Date().toISOString(),
-    });
-
-    setInitializationStep('Loading balances...');
-    const accountListResponse = await derivInstance.getAccountList();
-    const accountList = Array.isArray(accountListResponse.account_list) ? accountListResponse.account_list : [];
-
-    logOAuth('Account list loaded', {
+    logOAuth('Account list loaded via REST', {
       accountCount: accountList.length,
-      loginIds: accountList.map((account) => account.loginid || account.account_number).filter(Boolean),
+      accountIds: accountList.map((account) => account.account_id).filter(Boolean),
       currencies: [...new Set(accountList.map((account) => account.currency).filter(Boolean))],
     });
 
-    const balanceEntries = await Promise.all(
-      accountList.map(async (account) => {
-        const loginid = account.loginid || account.account_number;
-        try {
-          const balanceResponse = await derivInstance.getBalance(loginid);
-          logOAuth('Balance fetch complete', {
-            loginid,
-            balance: balanceResponse.balance?.balance,
-            currency: balanceResponse.balance?.currency,
-          });
-          return [loginid, normalizeAccount(account, balanceResponse)];
-        } catch (err) {
-          logOAuthError('Balance fetch failed', {
-            loginid,
-            error: err?.message || String(err),
-          });
-          return [loginid, normalizeAccount(account, null)];
-        }
-      })
-    );
+    const hydratedAccounts = accountList.map((account) => normalizeAccount(account));
 
-    const balanceMap = Object.fromEntries(balanceEntries);
-    const hydratedAccounts = Object.values(balanceMap);
+    // Prefer the previously-selected account (e.g. after a manual account
+    // switch or a page refresh), otherwise fall back to the first account.
+    const previousLoginId = selectedAccount?.loginid;
     const activeAccount =
-      hydratedAccounts.find((account) => account.loginid === authorizePayload.loginid) ||
-      hydratedAccounts.find((account) => account.account_number === authorizePayload.account_number) ||
-      hydratedAccounts[0] ||
-      normalizeAccount(authorizePayload, { balance: authorizePayload });
+      hydratedAccounts.find((account) => account.loginid === previousLoginId) || hydratedAccounts[0];
+
+    if (!activeAccount) {
+      throw new Error('No Deriv Options trading accounts found for this login');
+    }
+
+    const balanceMap = Object.fromEntries(hydratedAccounts.map((account) => [account.loginid, account]));
+
+    // 2. Request a fresh OTP-embedded websocket URL for the active account,
+    // then connect - the socket is authenticated at handshake time, no
+    // separate `authorize` message is sent or needed.
+    setInitializationStep('Connecting to markets...');
+    const otpUrl = await requestOtpWebsocketUrl(activeAccount.loginid, token, appId);
+
+    derivInstance.setSessionInfo({ accessToken: token, appId, accountId: activeAccount.loginid });
+    await derivInstance.connect(otpUrl);
+
+    logOAuth('Websocket connected and authenticated via OTP', {
+      connected: derivInstance.isConnected(),
+      accountId: activeAccount.loginid,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
 
     setUser({
-      accountId: activeAccount.loginid || activeAccount.account_number || authorizePayload.loginid || 'Unknown',
+      accountId: activeAccount.loginid || 'Unknown',
       balance: Number(activeAccount.balance || 0),
-      currency: activeAccount.currency || authorizePayload.currency || 'USD',
-      email: authorizePayload.email || '',
-      accountType: activeAccount.is_virtual || activeAccount.account_type === 'virtual' ? 'Demo' : 'Real',
-      loginid: activeAccount.loginid || authorizePayload.loginid,
+      currency: activeAccount.currency || 'USD',
+      email: activeAccount.email || '',
+      accountType: activeAccount.is_virtual ? 'Demo' : 'Real',
+      loginid: activeAccount.loginid,
     });
     setAccounts(hydratedAccounts);
     setBalances(balanceMap);
@@ -277,14 +257,22 @@ export const AuthProvider = ({ children }) => {
 
     logOAuth('Active account selected', {
       loginid: activeAccount.loginid,
-      accountNumber: activeAccount.account_number,
       currency: activeAccount.currency,
       balance: activeAccount.balance,
       accountType: activeAccount.account_type,
     });
 
-    const statusResponse = await derivInstance.getWebsiteStatus();
-    setWebsiteStatus(statusResponse.website_status || null);
+    // website_status isn't part of the current REST/OTP API surface - don't
+    // let a failure here block the rest of session initialization.
+    try {
+      const statusResponse = await derivInstance.getWebsiteStatus();
+      setWebsiteStatus(statusResponse.website_status || null);
+    } catch (err) {
+      logOAuthError('website_status unavailable, continuing without it', {
+        error: err?.message || String(err),
+      });
+      setWebsiteStatus(null);
+    }
 
     setInitializationStep('Connecting to markets...');
     const subscribedSymbols = [];
@@ -323,13 +311,12 @@ export const AuthProvider = ({ children }) => {
     });
 
     return {
-      authorization: authorizationResponse,
       accounts: hydratedAccounts,
       balances: balanceMap,
       activeAccount,
       subscriptions: subscribedSymbols,
     };
-  }, [ensureDeriv, normalizeAccount]);
+  }, [ensureDeriv, normalizeAccount, selectedAccount]);
 
   const logout = useCallback(() => {
     try {

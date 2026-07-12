@@ -35,7 +35,8 @@ export const TOAST_TYPES = {
 };
 
 export const API_ENDPOINTS = {
-  DERIV_WS: 'wss://ws.derivws.com/websockets/v3',
+  // Websocket connection URL is no longer static - it's minted per-account via
+  // REST (POST /trading/v1/options/accounts/{id}/otp), see src/services/deriv.js
   BALANCE: '/balance',
   PROPOSAL: '/proposal',
   BUY: '/buy',

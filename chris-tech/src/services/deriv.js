@@ -1,6 +1,55 @@
-// Legacy Deriv websocket app id used only for websocket connectivity and market subscriptions
-const DERIV_APP_ID = '134275';
-const DERIV_WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`;
+// Deriv's current production API (developers.deriv.com) authenticates websocket
+// connections via a short-lived OTP obtained over REST, rather than the old
+// app_id-query-param + `authorize` message pattern. Deriv-App-ID is the same
+// value as the OAuth client_id used for login - there is no separate legacy id.
+const REST_BASE = 'https://api.derivws.com';
+
+/**
+ * List the user's Options trading accounts (id, balance, currency, type) via REST.
+ * Replaces the old websocket `account_list` message.
+ */
+export async function fetchOptionsAccounts(accessToken, appId) {
+  const response = await fetch(`${REST_BASE}/trading/v1/options/accounts`, {
+    method: 'GET',
+    headers: {
+      'Deriv-App-ID': appId,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = body?.errors?.[0]?.message || `Failed to load accounts (${response.status})`;
+    throw new Error(message);
+  }
+
+  return Array.isArray(body.data) ? body.data : [];
+}
+
+/**
+ * Request a one-time-password websocket URL for a specific account.
+ * Returns a ready-to-connect wss:// URL, e.g.
+ * "wss://api.derivws.com/trading/v1/options/ws/demo?otp=..."
+ */
+export async function requestOtpWebsocketUrl(accountId, accessToken, appId) {
+  const response = await fetch(`${REST_BASE}/trading/v1/options/accounts/${accountId}/otp`, {
+    method: 'POST',
+    headers: {
+      'Deriv-App-ID': appId,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok || !body?.data?.url) {
+    const message = body?.errors?.[0]?.message || `Failed to obtain websocket OTP (${response.status})`;
+    throw new Error(message);
+  }
+
+  return body.data.url;
+}
 
 // ==================== Logging Utilities ====================
 const logWebSocket = (action, data) => {
@@ -19,7 +68,7 @@ const logWebSocketError = (action, error) => {
 };
 
 class DerivWebSocket {
-  constructor(url = DERIV_WS_URL) {
+  constructor(url = null) {
     this.url = url;
     this.ws = null;
     this.messageId = 1;
@@ -43,7 +92,28 @@ class DerivWebSocket {
     });
   }
 
-  async connect() {
+  /**
+   * Store the info needed to mint a fresh OTP on reconnect - the OTP embedded
+   * in the websocket URL is single-use and short-lived, so a plain retry of
+   * the old URL will fail.
+   */
+  setSessionInfo({ accessToken, appId, accountId } = {}) {
+    if (accessToken) this.token = accessToken;
+    if (appId) this.appId = appId;
+    if (accountId) this.accountId = accountId;
+  }
+
+  async connect(otpUrl) {
+    if (otpUrl) {
+      this.url = otpUrl;
+    }
+
+    if (!this.url) {
+      throw new Error(
+        'No websocket URL available. Call requestOtpWebsocketUrl() first and pass the result to connect().'
+      );
+    }
+
     if (this.isConnected() && this.authorized) {
       logWebSocket('Already connected and authorized, skipping reconnect', {
         isConnected: this.isConnected(),
@@ -58,8 +128,7 @@ class DerivWebSocket {
         this.emit('status', this.status);
 
         logWebSocket('Initiating websocket connection', {
-          url: this.url,
-          hasToken: !!this.token,
+          // Don't log the URL itself - it embeds a single-use OTP credential.
           status: this.status,
         });
 
@@ -69,26 +138,23 @@ class DerivWebSocket {
           this.reconnectAttempts = 0;
           this.isIntentionallyClosed = false;
           this.emit('connected');
-          this.emit('status', 'authorizing');
 
-          logWebSocket('Websocket connection established, authorizing...', {
-            hasToken: !!this.token,
+          // The connection is already authenticated via the OTP embedded in the
+          // URL - no separate `authorize` message is needed or supported.
+          this.authorized = true;
+          this.status = 'connected';
+          this.emit('status', this.status);
+
+          logWebSocket('Websocket connected and authenticated via OTP', {
+            authorized: this.authorized,
           });
 
           try {
-            await this.authorize();
-            this.status = 'connected';
-            this.emit('status', this.status);
-            logWebSocket('Websocket authorized successfully', {
-              authorized: this.authorized,
-            });
             await this.restoreSubscriptions();
             resolve();
           } catch (err) {
-            this.status = 'error';
-            this.emit('status', this.status);
-            logWebSocketError('Websocket authorization failed', err);
-            reject(err);
+            logWebSocketError('Failed to restore subscriptions', err);
+            resolve();
           }
         };
 
@@ -186,42 +252,19 @@ class DerivWebSocket {
     });
   }
 
-  async authorize(token) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      const errorMsg = 'WebSocket must be open to authorize';
-      logWebSocketError('Authorization failed - websocket not open', { readyState: this.ws?.readyState });
-      throw new Error(errorMsg);
+  /**
+   * @deprecated Deriv's current API authenticates the websocket via the OTP
+   * embedded in the connection URL (see requestOtpWebsocketUrl/connect). There
+   * is no `authorize` message in this protocol anymore. Kept as a safe no-op
+   * so any old callers don't crash.
+   */
+  async authorize() {
+    if (!this.isConnected()) {
+      throw new Error('WebSocket must be open to authorize');
     }
-
-    const authToken = token || this.token;
-    if (!authToken) {
-      const errorMsg = 'No token provided for authorization';
-      logWebSocketError('Authorization failed - no token', {});
-      throw new Error(errorMsg);
-    }
-
-    logWebSocket('Sending authorization request to websocket', {
-      tokenLength: authToken.length,
-      wsReadyState: this.ws.readyState,
-    });
-
-    const response = await this.send({ authorize: authToken });
-    
-    if (response.error) {
-      const errorMsg = response.error.message || 'Authorization failed';
-      logWebSocketError('Authorization error from Deriv', {
-        error: response.error.message,
-        errorCode: response.error.code,
-      });
-      throw new Error(errorMsg);
-    }
-
+    logWebSocket('authorize() called - no-op, connection is pre-authenticated via OTP', {});
     this.authorized = true;
-    logWebSocket('Websocket authorization successful', {
-      accountNumber: response.authorize?.account_number,
-      loginId: response.authorize?.loginid,
-      isVirtual: response.authorize?.is_virtual,
-    });
+    const response = { authorize: {} };
     this.emit('authorized', response);
     return response;
   }
@@ -282,10 +325,6 @@ class DerivWebSocket {
     return this.send({ active_symbols: 'brief', product_type: market });
   }
 
-  async getAccountList() {
-    return this.send({ account_list: 1 });
-  }
-
   async getBalance(accountId) {
     return this.send({ balance: 1, account: accountId });
   }
@@ -324,8 +363,17 @@ class DerivWebSocket {
 
     this.reconnectAttempts += 1;
     const delay = this.reconnectDelay * this.reconnectAttempts;
-    setTimeout(() => {
-      this.connect().catch((err) => this.emit('error', err));
+    setTimeout(async () => {
+      try {
+        if (this.token && this.appId && this.accountId) {
+          const freshUrl = await requestOtpWebsocketUrl(this.accountId, this.token, this.appId);
+          await this.connect(freshUrl);
+        } else {
+          await this.connect();
+        }
+      } catch (err) {
+        this.emit('error', err);
+      }
     }, delay);
   }
 
