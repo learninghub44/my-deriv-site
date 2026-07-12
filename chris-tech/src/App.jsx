@@ -8,7 +8,6 @@ const ToastProvider = React.lazy(() => import('./context/ToastContext').then(mod
 const AuthProvider = React.lazy(() => import('./context/AuthContext').then(module => ({ default: module.AuthProvider })));
 const TradingProvider = React.lazy(() => import('./context/TradingContext').then(module => ({ default: module.TradingProvider })));
 const Navbar = React.lazy(() => import('./components/common/Navbar'));
-const Home = React.lazy(() => import('./pages/Home'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Trading = React.lazy(() => import('./pages/Trading'));
 const Bots = React.lazy(() => import('./pages/Bots'));
@@ -76,11 +75,11 @@ function SafeApp() {
                   </Suspense>
                 </ErrorBoundary>
                 <Routes>
-                  {/* Public routes */}
+                  {/* Root now goes straight to the dashboard, no landing page */}
                   <Route path="/" element={
                     <ErrorBoundary>
                       <Suspense fallback={<LoadingFallback />}>
-                        <Home />
+                        <Dashboard />
                       </Suspense>
                     </ErrorBoundary>
                   } />
