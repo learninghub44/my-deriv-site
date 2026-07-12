@@ -60,9 +60,13 @@ export async function onRequestPost(context) {
     const clientId =
       env.DERIV_OAUTH_CLIENT_ID ||
       env.VITE_DERIV_OAUTH_CLIENT_ID ||
-      env.VITE_DERIV_APP_ID;
+      env.VITE_DERIV_APP_ID ||
+      '33NNVvIyYD0iFQM4vlZJn';
     const clientSecret = env.DERIV_OAUTH_CLIENT_SECRET;
-    const redirectUri = redirect_uri || env.DERIV_OAUTH_REDIRECT_URI;
+    const redirectUri =
+      redirect_uri ||
+      env.DERIV_OAUTH_REDIRECT_URI ||
+      'https://my-deriv-site.pages.dev/auth/callback';
 
     log('OAuth configuration loaded', {
       requestId,

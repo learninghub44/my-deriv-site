@@ -18,7 +18,7 @@ const Settings = React.lazy(() => import('./pages/Settings'));
 const Callback = React.lazy(() => import('./pages/Callback'));
 const ProtectedRoute = React.lazy(() => import('./components/common/ProtectedRoute'));
 
-const CANONICAL_HOST = import.meta.env.VITE_CANONICAL_HOST || '';
+const CANONICAL_HOST = import.meta.env.VITE_CANONICAL_HOST || 'my-deriv-site.pages.dev';
 const NON_CANONICAL_HOST = import.meta.env.VITE_NON_CANONICAL_HOST || '';
 
 const logApp = (msg, data) => {

@@ -47,16 +47,19 @@ export const API_ENDPOINTS = {
   WEBSITE_STATUS: '/website_status',
 };
 
+// Default production URL (Cloudflare Pages) - can be overridden via env var
+const DEFAULT_APP_URL = 'https://my-deriv-site.pages.dev';
+
 /**
  * Deriv OAuth Configuration
  * Uses official OAuth 2.0 endpoint with proper scopes and redirect handling
- * All app-specific values must be provided via environment variables.
+ * Falls back to Chris Tech's own App ID/domain if env vars aren't set.
  */
 export const DERIV_OAUTH_CONFIG = {
   authorize_url: 'https://oauth.deriv.com/oauth2/authorize',
   token_url: 'https://oauth.deriv.com/oauth2/token',
-  client_id: import.meta.env.VITE_DERIV_APP_ID,
-  redirect_uri: import.meta.env.VITE_DERIV_OAUTH_REDIRECT_URI,
+  client_id: import.meta.env.VITE_DERIV_APP_ID || '33NNVvIyYD0iFQM4vlZJn',
+  redirect_uri: import.meta.env.VITE_DERIV_OAUTH_REDIRECT_URI || `${DEFAULT_APP_URL}/auth/callback`,
   scope: 'read write',
   response_type: 'code',
 };
