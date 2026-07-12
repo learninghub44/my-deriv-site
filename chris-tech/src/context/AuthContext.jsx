@@ -44,6 +44,7 @@ const getPostLoginRedirect = () => localStorage.getItem('deriv_post_login_redire
 const clearStoredAuthState = () => {
   localStorage.removeItem('deriv_oauth_state');
   localStorage.removeItem('deriv_post_login_redirect');
+  localStorage.removeItem('deriv_oauth_code_verifier');
 };
 
 const generateRandomState = () => {
@@ -56,6 +57,40 @@ const storeAuthState = (state, redirectPath) => {
   localStorage.setItem('deriv_oauth_state', state);
   localStorage.setItem('deriv_post_login_redirect', redirectPath || '/dashboard');
 };
+
+// ==================== PKCE Helpers (Deriv's new auth.deriv.com OIDC flow) ====================
+// Deriv's current OAuth app registration issues no client secret - the app is a
+// "public client" and proves its identity with a PKCE code_verifier/code_challenge
+// pair generated fresh for each login, instead.
+
+const base64UrlEncode = (buffer) => {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return window
+    .btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
+const generateCodeVerifier = () => {
+  const array = new Uint8Array(32);
+  window.crypto.getRandomValues(array);
+  return base64UrlEncode(array.buffer);
+};
+
+const generateCodeChallenge = async (verifier) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(digest);
+};
+
+const getStoredCodeVerifier = () => localStorage.getItem('deriv_oauth_code_verifier');
+const storeCodeVerifier = (verifier) => localStorage.setItem('deriv_oauth_code_verifier', verifier);
 
 // ==================== Logging Utilities ====================
 
@@ -521,10 +556,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [accessToken, addToast, initializeAuthenticatedSession, refreshAccessToken, refreshToken, tokenExpiry]);
 
-  const login = useCallback(() => {
+  const login = useCallback(async () => {
     const state = generateRandomState();
     const redirectPath = window.location.pathname === '/' ? '/dashboard' : window.location.pathname;
     storeAuthState(state, redirectPath);
+
+    // Deriv's current OAuth app is a public client (no client secret) - it
+    // authenticates the request with a PKCE code_verifier/code_challenge pair
+    // instead. The verifier is stored locally and used again in handleCallback.
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    storeCodeVerifier(codeVerifier);
 
     const oauthParams = new URLSearchParams({
       response_type: DERIV_OAUTH_CONFIG.response_type,
@@ -532,6 +574,8 @@ export const AuthProvider = ({ children }) => {
       redirect_uri: DERIV_OAUTH_CONFIG.redirect_uri,
       scope: DERIV_OAUTH_CONFIG.scope,
       state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
     });
 
     const oauthUrl = `${DERIV_OAUTH_CONFIG.authorize_url}?${oauthParams.toString()}`;
@@ -648,6 +692,8 @@ export const AuthProvider = ({ children }) => {
           endpoint: '/api/oauth-token',
         });
 
+        const codeVerifier = getStoredCodeVerifier();
+
         const response = await fetch('/api/oauth-token', {
           method: 'POST',
           headers: {
@@ -656,6 +702,8 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify({
             code,
             redirect_uri: DERIV_OAUTH_CONFIG.redirect_uri,
+            client_id: DERIV_OAUTH_CONFIG.client_id,
+            code_verifier: codeVerifier,
           }),
         });
 

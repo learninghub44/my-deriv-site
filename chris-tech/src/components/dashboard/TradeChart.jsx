@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, CandlestickSeries } from 'lightweight-charts';
 import { useAuth } from '../../context/AuthContext';
 import { useTrading } from '../../context/TradingContext';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -48,7 +48,7 @@ export default function TradeChart() {
       },
     });
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderVisible: false,

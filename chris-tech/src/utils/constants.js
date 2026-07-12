@@ -56,11 +56,11 @@ const DEFAULT_APP_URL = 'https://my-deriv-site.pages.dev';
  * Falls back to Chris Tech's own App ID/domain if env vars aren't set.
  */
 export const DERIV_OAUTH_CONFIG = {
-  authorize_url: 'https://oauth.deriv.com/oauth2/authorize',
-  token_url: 'https://oauth.deriv.com/oauth2/token',
+  authorize_url: 'https://auth.deriv.com/oauth2/auth',
+  token_url: 'https://auth.deriv.com/oauth2/token',
   client_id: import.meta.env.VITE_DERIV_APP_ID || '33NNVvIyYD0iFQM4vlZJn',
   redirect_uri: import.meta.env.VITE_DERIV_OAUTH_REDIRECT_URI || `${DEFAULT_APP_URL}/auth/callback`,
-  scope: 'read write',
+  scope: 'trade account_manage',
   response_type: 'code',
 };
 
