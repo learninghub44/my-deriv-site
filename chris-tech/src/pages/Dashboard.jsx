@@ -61,12 +61,6 @@ export default function Dashboard() {
     recentTrades = [],
   } = useTrading() || {};
 
-  useEffect(() => {
-    if (!isAuthenticated && !authLoading) {
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
   const activeAccount = selectedAccount || (Array.isArray(accounts) && accounts[0]) || null;
   const totalBalance = useMemo(
     () => (Array.isArray(accounts) ? accounts.reduce((sum, account) => sum + Number(account?.balance || 0), 0) : 0),
@@ -81,10 +75,6 @@ export default function Dashboard() {
 
   if (authLoading || tradingLoading) {
     return <LoadingSpinner fullScreen message="Loading dashboard..." />;
-  }
-
-  if (!isAuthenticated) {
-    return <LoadingSpinner fullScreen message="Verifying session..." />;
   }
 
   return (

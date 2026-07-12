@@ -16,7 +16,6 @@ const CopyTrading = React.lazy(() => import('./pages/CopyTrading'));
 const AIAnalysis = React.lazy(() => import('./pages/AIAnalysis'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const Callback = React.lazy(() => import('./pages/Callback'));
-const ProtectedRoute = React.lazy(() => import('./components/common/ProtectedRoute'));
 
 const CANONICAL_HOST = import.meta.env.VITE_CANONICAL_HOST || 'my-deriv-site.pages.dev';
 const NON_CANONICAL_HOST = import.meta.env.VITE_NON_CANONICAL_HOST || '';
@@ -109,57 +108,49 @@ function SafeApp() {
                     </ErrorBoundary>
                   } />
 
-                  {/* Protected routes */}
-                  <Route element={
+                  {/* Dashboard & trading pages - viewable without forcing login first */}
+                  <Route path="/dashboard" element={
                     <ErrorBoundary>
                       <Suspense fallback={<LoadingFallback />}>
-                        <ProtectedRoute />
+                        <Dashboard />
                       </Suspense>
                     </ErrorBoundary>
-                  }>
-                    <Route path="/dashboard" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <Dashboard />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/trading" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <Trading />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/bots" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <Bots />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/copy-trading" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <CopyTrading />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/ai-analysis" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <AIAnalysis />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/settings" element={
-                      <ErrorBoundary>
-                        <Suspense fallback={<LoadingFallback />}>
-                          <Settings />
-                        </Suspense>
-                      </ErrorBoundary>
-                    } />
-                  </Route>
+                  } />
+                  <Route path="/trading" element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <Trading />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/bots" element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <Bots />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/copy-trading" element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CopyTrading />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/ai-analysis" element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <AIAnalysis />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/settings" element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <Settings />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
 
                   {/* Catch-all redirect to home */}
                   <Route path="*" element={<Navigate to="/" replace />} />

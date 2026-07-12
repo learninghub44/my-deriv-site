@@ -3,24 +3,11 @@
  * Leaderboard and copy trading interface
  */
 
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Users, TrendingUp, Award } from 'lucide-react';
 
 export default function CopyTrading() {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
-
-  useEffect(() => {
-    if (!isAuthenticated && !authLoading) {
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
   const traders = [
     {
       id: 1,

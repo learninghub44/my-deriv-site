@@ -3,24 +3,13 @@
  * Free trading bots: RSI, MACD, Trend, Martingale
  */
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Play, Square, TrendingUp, Activity } from 'lucide-react';
 
 export default function Bots() {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
   const [runningBots, setRunningBots] = useState(new Set());
-
-  useEffect(() => {
-    if (!isAuthenticated && !authLoading) {
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
 
   const bots = [
     {

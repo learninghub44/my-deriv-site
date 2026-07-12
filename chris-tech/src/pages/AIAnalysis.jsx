@@ -3,24 +3,11 @@
  * AI-powered market analysis and signals
  */
 
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Brain, TrendingUp, BarChart3, Zap, AlertCircle } from 'lucide-react';
 
 export default function AIAnalysis() {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
-
-  useEffect(() => {
-    if (!isAuthenticated && !authLoading) {
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
   const signals = [
     {
       symbol: 'R_25',
